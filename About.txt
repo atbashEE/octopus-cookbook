@@ -1,5 +1,39 @@
-### Welcome to your project!
+# Atbash Octopus cookbook
 
-- Brush up on Markdown: http://daringfireball.net/projects/markdown/basics
-- Learn about Penflip: [penflip.com/help](http://www.penflip.com/help)
-- Talk to a person: support@penflip.com
+Atbash Octopus is a Permission-based security framework for Java EE, MicroProfile, Java FX, and Java SE, which is able to secure URL's, EJB and CDI method calls, and JSF and JavaFX components with the same code base.
+
+In contrast to some other frameworks, the focus lies on the authorization part of the security aspects.
+
+But of course, different types of authentication are support but mainly asan integration with other products and protocols like Keycloak, OAuth2 and CAS.
+
+This cookbook provides step by step guidelines on how to use the octopus framework and explanation of the concepts and internal mechanism behind it.
+
+
+## Overview
+
+Section 1: Getting started
+
+Chapter 1 - 5 \(JSF, JAX-RS, Authentication, Authorization, Logoff\)
+
+Section 2: Authorization in detail
+
+Chapters ??? \(Permissions and roles, annotations, Tags for JAS and JavaFX, Filters, custom voters, ... )
+
+Section 2: Authentication in detail
+
+Chapters ??? \(Hashed password in DB, KeyCloak, OAuth2, Remember me, LDAP, 2 Factor, ... \)
+
+This cookbook is available under the [CC BY license](https://creativecommons.org/licenses/by/4.0/)
+
+Written by [Rudy De Busscher](https://www.atbash.be)
+
+### Atbash Octopus versus Octopus
+
+Octopus was started around 2014 as Permission-based security framework for Java EE with a strong focus on authorization.  Due to the initial focus on JSF, it isn't suited for Micro Services oriented applications (although there is support). Because of chosen architecture at that point, the decision was made to start a rewrite of it at the end of 2017 as part of the Atbash initiative.
+The initial version of the cookbook can be found [here](https://bitbucket.org/contribute-group/javaeesecurityfirst/downloads/octopus-cookbook.pdf)
+
+The rewrite takes into account that the framework must be useable from within Java SE, Java FX, Java EE application server, and MicroProfile implementations. The goals however, are still the same, a permissions based framework which makes it easy to implement authorization rules of your applicatiion using cross cutting concerns as the main design pattern. For ease of use, configuration is defined as properties files or YAML structured info with sensible defaults where possible. CDI receives a central role (using serviceLoader mechanism as fallback for the Java SE environment) which allows customizations by the developer if needed.
+
+### Features
+
+???
