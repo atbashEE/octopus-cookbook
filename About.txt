@@ -13,15 +13,15 @@ This cookbook provides step by step guidelines on how to use the octopus framewo
 
 Section 1: Getting started
 
-Chapter 1 - 5 \(JSF, JAX-RS, Authentication, Authorization, Logoff\)
+Chapter 1 - 5 (JSF, JAX-RS, Authentication, Authorization, Logoff, Supported Servers, Java 11)
 
 Section 2: Authorization in detail
 
-Chapters ??? \(Permissions and roles, annotations, Tags for JAS and JavaFX, Filters, custom voters, ... )
+Chapters ??? (Permissions and roles, annotations, Tags for JAS and JavaFX, Filters, custom voters, ... )
 
-Section 2: Authentication in detail
+Section 3: Authentication in detail
 
-Chapters ??? \(Hashed password in DB, KeyCloak, OAuth2, Remember me, LDAP, 2 Factor, ... \)
+Chapters ??? (Hashed password in DB, KeyCloak, OAuth2, Remember me, LDAP, 2 Factor, ... \)
 
 This cookbook is available under the [CC BY license](https://creativecommons.org/licenses/by/4.0/)
 

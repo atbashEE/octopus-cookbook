@@ -1,3 +1,286 @@
-# Chapter 1 (Example Chapter)
+# 1. Simple JSF Application
 
-I was born in the year 1632, in the city of York, of a good family...
+In this chapter, we create a simple Java EE 7 JSF application which uses Atbash Octopus to provide the security. The goal is to learn the different parts of Octopus needed for securing a JSF application.
+
+The first step only does the authentication of your end user, determining who he or she is.
+
+## 1.1 Main scenario
+
+The code for this example can be found in the gitbook/ex1 directory of this [Git Repository](https://github.com/atbashEE/octopus-examples).
+
+### 1.1.1 Create Maven Project
+* Go to a directory within the terminal where the project will be created.
+* Execute the Maven command to create an empty Java EE project.
+
+          mvn archetype:generate -Dfilter=com.airhacks:javaee7-essentials-archetype
+
+* Select the archetype (number 1)
+* Select option 4 for Java8.
+* Use as artifactId _ex1_ (will be the name of the war file)
+* Open the created project in the IDE.
+
+### 1.1.2 Add the dependencies
+
+* Define the versions of the artefacts as Maven values (within properties section)
+
+        <octopus.version>0.6</octopus.version>
+        <deltaspike.version>1.8.1</deltaspike.version>
+        <primefaces.version>7.0</primefaces.version>
+
+* Add the Maven dependency for the Java EE 7 JSF application
+
+        <dependency>
+            <groupId>be.atbash.ee.security</groupId>
+            <artifactId>octopus-jsf7</artifactId>
+            <version>${octopus.version}</version>
+        </dependency>
+
+* Add the Maven dependency for PrimeFaces
+
+        <dependency>
+            <groupId>org.primefaces</groupId>
+            <artifactId>primefaces</artifactId>
+            <version>${primefaces.version}</version>
+        </dependency>
+
+* Add the Deltaspike dependencies
+
+        <dependency>
+            <groupId>org.apache.deltaspike.modules</groupId>
+            <artifactId>deltaspike-security-module-impl</artifactId>
+            <version>${deltaspike.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+### 1.1.3 Define web.xml
+
+* Since we like the .xhtml extension for JSF pages, create a _web.xml_ (within **webapp/WEB-INF** directory) file with the following contents.
+
+        <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+        <web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
+         version="3.1">
+
+            <servlet>
+                <servlet-name>Faces Servlet</servlet-name>
+                <servlet-class>javax.faces.webapp.FacesServlet</servlet-class>
+                <load-on-startup>1</load-on-startup>
+            </servlet>
+            <servlet-mapping>
+                <servlet-name>Faces Servlet</servlet-name>
+                <url-pattern>*.xhtml</url-pattern>
+            </servlet-mapping>
+
+        </web-app>
+
+### 1.1.4 Define secured URL pattern
+
+* Define those URLs which are protected. This can be done within the file _securedURLs.ini_ which needs to be located within the **webapp/WEB-INF** directory.
+
+        pages/** = user
+
+### 1.1.5 Define JSF pages
+
+* The _index.xhtml_, which we define within the root (create the file within the _webapp_ directory), it is publicly, anonymously accessible.
+
+       <!DOCTYPE html>
+       <html xmlns="http://www.w3.org/1999/xhtml"
+          xmlns:h="http://xmlns.jcp.org/jsf/html"
+        >
+
+          <h:head>
+              <title>Octopus cookbook - Example 1 - JSF Authentication</title>
+          </h:head>
+
+          <h:body>
+              Hello World
+              <a href="pages/user.xhtml">User page</a>
+          </h:body>
+       </html>
+
+* Define the protected user page (_user.xhtml_) within the directory **webapp/pages**.
+
+       <!DOCTYPE html>
+
+       <html xmlns="http://www.w3.org/1999/xhtml"
+             xmlns:h="http://xmlns.jcp.org/jsf/html"
+       >
+
+           <h:head>
+               <title>Octopus cookbook - Example 1 - JSF Authentication</title>
+           </h:head>
+
+           <h:body>
+               authenticated user : #{loggedInUser}
+           </h:body>
+       </html>
+
+### 1.1.6 Define the login page
+
+* We will define the login page used by Octopus when user credentials are required. Filename _login.xhtml_ within the **webapp** directory.
+
+        <!DOCTYPE html >
+        <html xmlns="http://www.w3.org/1999/xhtml" xmlns:h="http://java.sun.com/jsf/html"
+              xmlns:p="http://primefaces.org/ui">
+        <h:head>
+            <title>Octopus cookbook - Example 1 - JSF Authentication</title>
+        </h:head>
+        <h:body>
+            <h2>Login</h2>
+            <h:form id="login">
+                <h:panelGrid columns="2">
+                    <p:outputLabel for="username" value="Username:"/>
+                    <p:inputText id="username" value="#{loginBean.username}" required="true"/>
+
+                    <p:outputLabel for="password" value="Password:"/>
+                    <p:password id="password" value="#{loginBean.password}" required="true" feedback="" />
+
+                    <h:panelGroup/>
+                    <p:commandButton value="Login" actionListener="#{loginBean.doLogin}" update="@form" process="@form"/>
+
+                </h:panelGrid>
+                <p:messages />
+            </h:form>
+            For this example, password is the same as username and any username will be accepted.
+        </h:body>
+        </html>
+
+### 1.1.7 Define Octopus data
+
+* Octopus asks the authentication and authorization information through a CDI bean implementing the _be.c4j.ee.security.realm.SecurityDataProvider_ interface.
+Create the _be.atbash.ee.security.octopus.book.ex1.ApplicationSecurityData_ class with the following contents.
+
+        package be.atbash.ee.security.octopus.book.ex1;
+
+        import be.atbash.ee.security.octopus.authc.AuthenticationInfo;
+        import be.atbash.ee.security.octopus.authc.AuthenticationInfoProvider;
+        import be.atbash.ee.security.octopus.realm.AuthenticationInfoBuilder;
+        import be.atbash.ee.security.octopus.token.AuthenticationToken;
+        import be.atbash.ee.security.octopus.token.UsernamePasswordToken;
+
+        import javax.enterprise.context.ApplicationScoped;
+
+        @ApplicationScoped
+        public class ApplicationSecurityData extends AuthenticationInfoProvider {
+
+            private int principalId = 0;
+
+            @Override
+            public AuthenticationInfo getAuthenticationInfo(AuthenticationToken authenticationToken) {
+                if (authenticationToken instanceof UsernamePasswordToken) {
+                    UsernamePasswordToken usernamePasswordToken = (UsernamePasswordToken) authenticationToken;
+
+                    AuthenticationInfoBuilder authenticationInfoBuilder = new AuthenticationInfoBuilder();
+                    authenticationInfoBuilder.principalId(principalId++)
+                            .name(authenticationToken.getPrincipal().toString());
+                    // TODO: Change for production. Here we use username as password
+                    authenticationInfoBuilder.password(usernamePasswordToken.getUsername());
+
+                    return authenticationInfoBuilder.build();
+                }
+
+                return null;
+            }
+
+        }
+
+### 1.1.8 Test the application
+
+* Deploy the application on a Java EE 7 compliant application server capable of running on Java 8.
+* Open the browser pointing to the following URL : http://<host>/ex1/index.xhtml
+* Click on the user page link
+* Fill in any username and password information in the login page (username must be equals to password)
+* Click on the Login button
+* See if you end up on the user page and see your username displayed here.
+
+## 1.2 Explanation
+
+### 1.2.1 Maven project management
+
+This example uses maven to build the WAR file and specify the different dependencies.
+
+However, Maven is not required to use the Octopus functionality. Other build tools like Gradle or even without any tools, the framework can be used in your application.
+
+The archetype from _com.airhacks_ creates a minimal Java EE 7 based web application which uses Java 8. (although Java 8 is not a requirement of Octopus)
+
+### 1.2.2 Maven dependencies
+
+Since we are creating a simple JSF application, we use the _octopus-jsf7_ dependency. The same dependency can be used for a Java EE 8 or Jakarta EE 8 compliant server.
+
+Octopus has transient dependencies on some other artefacts. DeltaSpike is also one of the frameworks on which Octopus is built on top. But these dependencies are deliberately set to provided so that it is easier to define your own version.
+
+### 1.2.3 JSF Url configuration
+
+Within the web.xml we can define the URL pattern to which we are linking the JSF framework.
+
+In this example, we use the .xhtml suffix as a pattern. This makes it easier to protect the source files for the JSF views as we don't need to indicate that they shouldn't be served by the server.
+
+But of course, you are free here to define the best practices or company rules you adhere.
+
+### 1.2.4 secured URLs
+
+Octopus will use the information within the _securedURLs.ini_ file to determine which URLs are protected.
+
+In this example, we define that all views (URLs) in the pages directory (or subdirectory) requires a _user_ authentication.
+
+All other pages (other subdirectories or the root) will be accessible anonymously.
+
+### 1.2.5 JSF pages
+
+The _index.xhtml_ page will be accessible by anyone and just contains a link to a protected view within that directory pages which we specified earlier.
+
+On that user page, we show the name of the user which has logged in. As we will see in a next paragraph, we set the username which the end user specified as the name of the authenticated user.
+
+The EL expression **#{loggedInUser}** is defined by Octopus and always contains the name of the authenticated user.
+
+See the explanation of the _getAuthenticationInfo()_ method on how we can set the name of the authenticated user.
+
+### 1.2.6 Login page
+
+This login page is automatically called by Octopus when it detects that access to a page requires an authenticated user.
+
+By default, this page must be called _login.xhtml_ and be located within the root of the application. (and is therefor placed within the webapp directory)
+
+The structure, layout, and design are entirely up to the developer. There are only 3 requirements that must be fulfilled to be able to be used by Octopus.
+
+The field used for entering the username must be linked to the _userName_ property of the JSF (or CDI) bean called _loginBean_. So we are using the EL expression _#{loginBean.userName}_.
+
+For the password, we need to link it to the _password_ property of the same bean. So we use the EL expression _#{loginBean.password}_.
+
+The button which is used to send the data to the server must be linked to the _doLogin()_ method of again the same bean. In the example, we used the EL expression _#{loginBean.doLogin}_ as EL expression within the actionListener Property of the PrimeFaces command button. As you can see, AJAX is allowed for this use case.
+
+### 1.2.7 Supply data to Octopus
+
+Octopus itself has no code or features for retrieving the authentication and authorization data it must use.  A CDI bean extending the _be.atbash.ee.security.octopus.authc.AuthenticationInfoProvider_ class must be provided by the developer to provide the authentication info.
+
+In our example, we created the class _ApplicationSecurityData_ for this purpose. We have the annotation _@ApplicationScoped_ to make it a CDI bean and have implemented the abstract method _getAuthenticationInfo()_.
+
+Since we have no authorization requirements for this example, we did not specify any information for it in the project See ??? how you can provide authorization information to Octopus.
+
+For the _getAuthenticationInfo()_ method, we need to return something different from null. Otherwise, Octopus will decide that the credentials are invalid without performing any other check.
+
+The method has a parameter with an AuthenticationToken which the user supplied to identify itself. This can be a username - password combination but it can also be a token derived from an OAuth2 token. (see ???)
+
+To build the return value of the method, you can make use of a builder which should make it easier to supply all the values octopus need.
+
+Some info on the required data
+
+* **principalId** must be a unique identification for the user. it will be used to ask for the authorization information for that user (here not used)
+* **name** is the descriptive text Octopus can use to indicate the authenticate user (instead of his username)
+* **password** is the password what you expect the user entered as part of his credentials.
+
+the **userName** is handy in case you want to base the authorization information on this value, otherwise, the principalId will do.
+
+## 1.3 Where to go next
+
+* Try the alternatives (see 1.4) of this example to learn about the more advanced use cases.
+* Learn about the steps in case you are using Gradle (see ???)
+* Learn about the usage of a Maven BOM for a more opinionated setup of your web application. (See ??)
+* Learn about all the options for securing the URLs (See ???)
+* Check out the example 2 to see how authorization can be used with Octopus.
+* Learn about the different authorization schemes supported by Octopus in the section ???.
+* Look at the Appendix ?? for all the options related to the filters which you can use in the securedURLs.ini file.
+* Look at the Appendix ?? for a technical explanation about the AuthenticationInfoBuilder.
+
+## 1.4 Alternatives

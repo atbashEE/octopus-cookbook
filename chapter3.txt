@@ -1,3 +1,1 @@
-# Chapter 3
-
-Write here...
+# 3. Logout and events
