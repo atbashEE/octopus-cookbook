@@ -1,1 +1,272 @@
 # 2. Securing JSF components
+
+Authorization is probably the most important part of the security requirements of your application. We need to make sure that our users can only access the data and functionality she is entitled to.
+
+Therefore, within Octopus a lot of effort is put into supporting the developer in this task. In this example, we see how you can use declarative authorization of JSF components.
+
+## 2.1 Main scenario
+
+The code for this example can be found in the gitbook/ex2 directory of this [Git Repository](https://github.com/atbashEE/octopus-examples).
+
+This text will continue from the main scenario from the first example.
+
+### 2.1.1 Supply Authorization info to Octopus
+
+* Open the class _ApplicationSecurityData_ and change _AuthenticationInfoProvider_ to _be.atbash.ee.security.octopus.realm.SecurityDataProvider_ and implement the getAuthorizationInfo() method. (see #1.1.7)
+
+
+        @Override
+        public AuthorizationInfo getAuthorizationInfo(PrincipalCollection principalCollection) {
+            AuthorizationInfoBuilder builder = new AuthorizationInfoBuilder();
+            UserPrincipal principal = principalCollection.getPrimaryPrincipal();
+            if ("admin".equalsIgnoreCase(principal.getUserName())) {
+                builder.addPermission("demo:*:*");
+            }
+            return builder.build();
+        }
+
+### 2.1.2 Add secured JSF components
+
+* Add the namespace alias for octopus at the root element of _user.xhtml_ JSF page.
+
+        <html xmlns="http://www.w3.org/1999/xhtml"
+            xmlns:h="http://xmlns.jcp.org/jsf/html"
+            xmlns:sec="c"
+        >
+
+
+* Add simple JSF output text components which are secured based on permissions.
+
+        <h:outputText value="Only visible with 'demo-read' permission, checks on demo:read:* permission">
+            <sec:securedComponent permission="demo:read:*"/>
+        </h:outputText> <br/>
+        <h:outputText value="This one checks on demo:*.*">
+            <sec:securedComponent permission="demo:*:*"/>
+        </h:outputText> <br/>
+        <h:outputText value="This should never be shown because no user has this permission forbidden:*:*">
+            <sec:securedComponent permission="forbidden:*:*"/>
+        </h:outputText>
+
+### 2.1.3 Test the application
+
+* Test the application with the username (and password) _admin_. See how some of the outputText components are shown.
+
+* Open within another browser (because we don't know how to log out) the application and test with another user (like _test_) and see that no outputText components are shown.
+
+## 2.2 Explanation permissions
+
+### 2.2.1 Why permissions
+
+In this example, we use **wildcard permissions**. Permissions and roles are more in detailed explained here ???, but you should always use permissions as the basis for your authorization.
+
+Why? Well, have a look at following scenario!
+
+Suppose we are using roles, like _employee_, _manager_ and _administrator_. Within the code, some method needs to verify if the connected user has the role _manager_ for example (hopefully with annotations, not in the code directly because security is a cross-cutting concern and should not be mixed with business logic).
+
+Everything goes well, the complete application is tested and is put into production.
+
+After some while, there is the decision made that the method can be performed by employees and thus that the verification needs to be replaced by a check on _employee_ and _manager_ role.
+
+You have no other option then change your source code, create a new build and probably the application needs to be tested again before it can be put into production.
+
+And what if you defined that the user needs some kind of permission to be able to execute the method?  The only thing that you needed to change is the assignment of permissions to users which is probably (and should be) outside of the application source code.
+
+So when you are using permissions, changing what a user can do within your application doesn't need any change within your application.
+
+### 2.2.2 Wildcard permissions
+
+The Octopus **wildcard permissions** consist of 3 parts.
+
+* **domain**, this can be interpreted as the functional domain for which this permission is used (order, customer, but can be any text)
+* **action**, this is the operation in the domain. It can be something like reading, write, etc ... but they don't need to be CRUD alike.
+* **target**, is the most detailed level and can something like the juridical form of the enterprise which can be read.
+
+The nice thing about those _wildcard permissions_ is that you can specify multiple permissions with the usage of the wildcard character \*.
+
+So when the method required the permission _customer:read:*_, a user with the permission _customer:\*:\*_ is allowed to execute the method.
+
+## 2.3 Explanation
+
+### 2.3.1 Supply Authorization info
+
+Retrieving Authorization, just like Authentication, information is not integrated within Octopus itself.
+
+Since there are so many ways the Authorization information can be managed, Octopus just calls 1 method which needs to be implemented by the developer which supplies all the information about the Authorization of a certain user.
+
+This method is the _getAuthorizationInfo()_ method within the _be.atbash.ee.security.octopus.realm.SecurityDataProvider_ abstract class. It is also possible to define the authorization retrieval in a seperate class, see ?? for more info on this.
+The parameter of the _getAuthorizationInfo()_ method contains the **principal** (the entity which is authenticated) of type _be.atbash.ee.security.octopus.subject.UserPrincipal_ created based on the _AuthenticationInfo_ returned by the other method of the class. (see also 1.1.7)
+
+There is also a builder available (_be.atbash.ee.security.octopus.realm.AuthorizationInfoBuilder_) to create the information easier.
+
+In this example, we add a certain permission for the user _admin_.
+
+### 2.3.2 Add secured JSF components
+
+Octopus has a custom tag to define if the JSF component should be rendered or not based on the permissions the user has.
+
+This is the _securedComponent_ tag and can be found in the namespace _http://www.atbash.be/secure/octopus_
+
+In his most simple form, we specify the permission which is required like in the example:
+
+        <h:outputText value="Only visible with 'demo-read' permission, checks on demo:read:* permission">
+            <sec:securedComponent permission="demo:read:*"/>
+        </h:outputText>
+
+The _securedComponent_ tag manipulates the _rendered_ attribute of his enclosing parent tag. So those users who don't have the permission _demo:read:*_ (only the user with username _admin_ will receive it in our example) will not see the text of the outputText component.
+
+See Appendix ??? for a complete description of the securedComponent attributes.
+
+## 2.4 Where to go next
+
+* Try the alternatives (see 2.5) of this example to learn about some other ways of specifying the permissions.
+* Learn about securing methods (from EJB and CDI) See ???
+* Learn about programmatically defined checks in example ???
+* Learn about securing URLs in example ???
+* Learn about using roles in the examples ??? and ???
+* See Appendix ??? for the details about the securedComponent tag, security annotations useable on methods and filters for protecting URLs.
+
+## 2.5 Alternatives
+
+### 2.5.1 Simple permissions
+
+When you have a rather small application, where you only need the _domain_ part of the wildcard permission, or you don't need the wildcard functionality, this example shows you how you can use a simpler notation.
+
+Start from the code that you have created in the main scenario of example 2.
+
+* Use the string _demo_ (instead of _demo:\*:\*_ ) in the _getAuthorizationInfo()_ method as permission for the user _admin_.
+* Use the following outputText components in the JSF view.
+
+        <h:outputText value="This one checks on demo">
+            <sec:securedComponent permission="demo"/>
+        </h:outputText> <br/>
+        <h:outputText value="This should never be shown because no user has this permission forbidden">
+            <sec:securedComponent permission="forbidden"/>
+        </h:outputText>
+
+* Test the application with the user _admin_ and another user.
+
+#### Additional info
+
+When you specify a permission strings that don't have the **:** separator, it is treated as a _domain_ part of a wildcard permission (and the **:\*:\*** is appended automatically)
+
+So in our example
+
+        demo
+
+is interpreted as
+
+        demo:*:*
+
+This makes it easier if you plan not to use the advanced features of the _wildcard permission_ functionality of Octopus.
+
+### 2.5.2 Named permissions
+
+In the previous alternative, you saw how you can specify a name which is interpreted correctly as a permission by assuming * for _action_ and _target_.
+
+In this alternative, you will learn how you can combine the feature of having a _named_ permission and the power of the _wildcard permissions_.
+
+Start also with the code that you have created in the main scenario of example 2.
+
+* Use the string _access_ (instead of _demo:\*:\*_ ) in the _getAuthorizationInfo()_ method as permission for the user _admin_.
+* Add the following method to the _ApplicationSecurityData_ class.
+
+        @Produces
+        public StringPermissionLookup defineLookup() {
+            List<NamedDomainPermission> allPermissions = new ArrayList<>();
+            allPermissions.add(new NamedDomainPermission("demoAccess", "access:demo:*"));
+            allPermissions.add(new NamedDomainPermission("access", "access:*:*"));
+            allPermissions.add(new NamedDomainPermission("specialPermission", "top:secret:*"));
+            return new StringPermissionLookup(allPermissions);
+        }
+
+* Use the following outputText components in the JSF view.
+
+        Has the user demo access?
+        <h:outputText value="Yes">
+            <sec:securedComponent permission="demoAccess"/>
+        </h:outputText>
+        <h:outputText value="NO !">
+            <sec:securedComponent not="true" permission="demoAccess"/>
+        </h:outputText> <br/>
+        <h:outputText value="This should never be shown because no user has the special permission">
+            <sec:securedComponent permission="specialPermission"/>
+        </h:outputText>
+
+#### Additional info
+
+When you define a producer for a _StringPermissionLookup_ class, Octopus will use this instance to translate the name to a wildcard permission.
+
+So, the idea is that you use everywhere the simple version of the permissions (without the colon separator : ) and have the _StringPermissionLookup_ having it translated into a wildcard Permission.
+
+The example shows also the way how you can invert the result of the permission verification. With
+
+            <sec:securedComponent not="true" permission="demoAccess"/>
+
+The outputText component, in this case, is only shown when the user doesn't have the permission.
+
+### 2.5.3 Type safe permission names
+
+It is a best practice that you avoid using Strings within your application because they aren't type safe. It is more difficult to change the value afterward (because we aren't sure if we have changed all occurrences) and we can't verify if we didn't make a typo.
+
+In the example ??? you will see that a typesafe version (using enums) is very handy when you can define annotations to secure EJB and CDI methods.
+
+But in other situations, like the securedComponent we have already seen, the advantage is less because we just use Strings in the JSF view.
+
+These are the steps to define named permissions based on an enum.
+
+* Create the Java enum, _AppPermission_ for example
+
+        public enum AppPermission implements NamedPermission {
+            ACCESS, ACCESS_DEMO, TOP_SECRET;
+
+            @Override
+            public boolean implies(Permission permission) {
+                return permission instanceof AppPermission && permission.equals(this);
+            }
+
+            @Override
+            public String toJSONString() {
+                // Not important here
+                return null;
+            }
+        }
+
+* Use the enum to specify the permission within the _getAuthorizationInfo()_ method.
+
+        builder.addPermission(AppPermission.ACCESS.name());
+
+* Define a lookup by means of a CDI producer method within the _ApplicationSecurityData_ class.
+
+        @Produces
+        public PermissionLookup<AppPermission> defineLookup() {
+            List<NamedDomainPermission> allPermissions = new ArrayList<>();
+            allPermissions.add(new NamedDomainPermission(AppPermission.ACCESS_DEMO.name(), "access:demo:*"));
+            allPermissions.add(new NamedDomainPermission(AppPermission.ACCESS.name(), "access:*:*"));
+            allPermissions.add(new NamedDomainPermission(AppPermission.TOP_SECRET.name(), "top:secret:*"));
+
+            return new PermissionLookup<AppPermission>(allPermissions, AppPermission.class);
+        }
+
+* Create the _octopusConfig.properties_ file within the _src/main/resources_ directory so that it will be added to the classpath.
+* Add an entry for the enum with the permission names
+
+        namedPermission.class=be.atbash.ee.security.octopus.book.ex2.AppPermission
+
+* Use the following outputText components in the JSF view.
+
+        Has the user demo access?
+        <h:outputText value="Yes">
+            <sec:securedComponent permission="ACCESS_DEMO"/>
+        </h:outputText>
+        <h:outputText value="NO !">
+            <sec:securedComponent not="true" permission="ACCESS_DEMO"/>
+        </h:outputText> <br/>
+        <h:outputText value="This should never be shown because no user has the special permission">
+            <sec:securedComponent permission="TOP_SECRET"/>
+        </h:outputText>
+
+#### Additional info
+
+The enum version has great similarities with the named permission version we saw in alternative 2.
+
+The only difference here is that we create an enum and we use this enum as much as possible.
