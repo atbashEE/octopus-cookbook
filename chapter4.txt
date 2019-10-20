@@ -1,0 +1,325 @@
+# 4. Authorization
+
+In chapter 2, we saw already how we can use authorization requirements on JSF components. But there are 2 other places where we can use permissions, URLs and EJB methods. Within this example, we look at securing EJB methods.
+
+## 4.1 Main scenario
+
+The code for this example can be found in the gitbook/ex4 directory of this [Git Repository](https://github.com/atbashEE/octopus-examples).
+
+We will start from scratch again, but most of the steps are the same as the ones in chapter 1 and 2.
+
+### 4.1.1 Create Maven Project
+* Go to a directory within the terminal where the project will be created.
+* Execute the Maven command to create an empty Java EE project.
+
+          mvn archetype:generate -Dfilter=com.airhacks:javaee7-essentials-archetype
+
+* Select the archetype (number 1)
+* Select option 4 for Java8.
+* Use as artifactId _ex4_ (will be the name of the war file)
+* Open the created project in the IDE.
+
+### 4.1.2 Add the dependencies
+
+Same as 1.1.2
+
+### 4.1.3 Define web.xml
+
+Same as 1.1.3
+
+### 4.1.4 Define secured URL pattern
+
+Same as 1.1.4
+
+### 4.1.5 Configure EJB interceptor
+
+* Create a _ejb-jar.xml_ file for defining the EJB interceptor. The file must be created within the _/webapp/WEB-INF_ directory.
+
+        <?xml version="1.0" encoding="UTF-8"?>
+        <ejb-jar xmlns="http://java.sun.com/xml/ns/javaee"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="http://java.sun.com/xml/ns/javaee
+                http://java.sun.com/xml/ns/javaee/ejb-jar_3_1.xsd"
+         version="3.1">
+            <interceptors>
+                <interceptor>
+                    <interceptor-class>be.atbash.ee.security.octopus.interceptor.OctopusInterceptor</interceptor-class>
+                </interceptor>
+            </interceptors>
+            <assembly-descriptor>
+                <interceptor-binding>
+                    <ejb-name>*</ejb-name>
+                    <interceptor-class>be.atbash.ee.security.octopus.interceptor.OctopusInterceptor</interceptor-class>
+                </interceptor-binding>
+            </assembly-descriptor>
+        </ejb-jar>
+
+### 4.1.6 Configure CDI
+
+* Create a _beans.xml_ file for using CDI beans. The file must also go into the _/webapp/WEB-INF_ directory.
+
+        <?xml version="1.0" encoding="UTF-8"?>
+        <beans xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/beans_1_1.xsd"
+               bean-discovery-mode="annotated">
+        </beans>
+
+### 4.1.7 EJB bean
+
+* We will have a simple EJB bean, with one method which is protected
+* Create the class _HelloBoundary_
+* Define it as a Stateless session bean
+
+        @Stateless
+
+* Define a simple greeting method.
+* Define the Authorization requirements
+
+        @Stateless
+        public class HelloBoundary {
+
+            @RequiresPermissions("demo:*:*")
+            public String sayHello(String name) {
+                return "Hello "+name;
+            }
+        }
+
+### 4.1.8 Create a CDI managed backing bean
+
+* Bean will be used for linking within the JSF view.
+* Create the class _HelloBean_.
+* Define it as a CDI backing bean (annotation on the class level).
+
+        @Model
+
+* Inject the _HelloBoundary_ we created in the previous step.
+
+        @Inject
+        private HelloBoundary helloBoundary;
+
+* Define properties for the JSF screen values (with getters and setters, omitted here)
+
+        private String name;
+        private String greeting;
+
+* Define the ActionListener method for the button
+
+
+        public void doGreet() {
+            greeting = helloBoundary.sayHello(name);
+        }
+
+### 4.1.9 Define the JSF pages
+
+* The _index.xhtml_, which we define within the root (files within the _webapp_ directory are public, anonymously accessible).
+
+        <!DOCTYPE html>
+        <html xmlns="http://www.w3.org/1999/xhtml"
+           xmlns:h="http://xmlns.jcp.org/jsf/html"
+         >
+
+          <h:head>
+              <title>Octopus cookbook</title>
+          </h:head>
+
+          <h:body>
+              Hello World
+              <a href="pages/user.xhtml">User page</a>
+          </h:body>
+        </html>
+
+* Define the protected user page (_user.xhtml_) within the directory **webapp/pages**.
+
+        <!DOCTYPE html>
+
+        <html xmlns="http://www.w3.org/1999/xhtml"
+              xmlns:h="http://xmlns.jcp.org/jsf/html"
+              xmlns:sec="http://www.atbash.be/secure/octopus"
+              xmlns:p="http://primefaces.org/ui"
+        >
+
+        <h:head>
+            <title>Octopus cookbook</title>
+
+        </h:head>
+
+        <h:body>
+
+            <h:form>
+                authenticated user : #{loggedInUser}
+                <h:commandLink value="Logout" actionListener="#{loginBean.logout}" action="/index.xhtml"/>
+                <br/>
+
+                <h:outputText value="The user has not the required permissions so greeting will fail">
+                    <sec:securedComponent not="true" permission="demo:*:*"/>
+                </h:outputText>
+
+                <br/>
+                <p:outputLabel value="Name" for="name"/>
+                <p:inputText id="name" value="#{helloBean.name}"/>
+
+                <br/>
+                <p:commandButton value="Greeting" actionListener="#{helloBean.doGreet}"
+                         ajax="false"/>
+
+                <br/>
+                <h:outputText value="Greeting text : #{helloBean.greeting}" rendered="#{not empty helloBean.greeting}"/>
+            </h:form>
+        </h:body>
+
+        </html>
+
+
+### 4.1.10 Define the login page
+
+* We will define the login page used by Octopus when user credentials are required. File name _login.xhtml_ within the **webapp** directory.
+
+        <!DOCTYPE html >
+        <html xmlns="http://www.w3.org/1999/xhtml" xmlns:h="http://xmlns.jcp.org/jsf/html"
+              xmlns:p="http://primefaces.org/ui">
+        <h:head>
+            <title>Octopus cookbook Login</title>
+        </h:head>
+        <h:body>
+            <h2>Login</h2>
+            <h:form id="login">
+                <h:panelGrid columns="2">
+                    <p:outputLabel for="username" value="Username:"/>
+                    <p:inputText id="username" value="#{loginBean.username}" required="true"/>
+
+                    <p:outputLabel for="password" value="Password:"/>
+                    <p:password id="password" value="#{loginBean.password}" required="true" feedback="" />
+
+                    <h:panelGroup/>
+                    <p:commandButton value="Login" actionListener="#{loginBean.doLogin}" update="@form" process="@form"/>
+
+                </h:panelGrid>
+                <p:messages />
+            </h:form>
+            For this example, password is the same as username and any username will be accepted.
+        </h:body>
+        </html>
+
+### 4.1.12 Define Octopus data
+
+* Octopus asks the authentication and authorization information through a CDI bean extending the _be.atbash.ee.security.octopus.realm.SecurityDataProvider_ interface.
+Create the _be.rubus.octopus.book.ex4.ApplicationSecurityData_ class with the following contents.
+
+        package be.rubus.octopus.book.ex4;
+
+        import be.atbash.ee.security.octopus.authc.AuthenticationInfo;
+        import be.atbash.ee.security.octopus.authz.AuthorizationInfo;
+        import be.atbash.ee.security.octopus.realm.AuthenticationInfoBuilder;
+        import be.atbash.ee.security.octopus.realm.AuthorizationInfoBuilder;
+        import be.atbash.ee.security.octopus.realm.SecurityDataProvider;
+        import be.atbash.ee.security.octopus.subject.PrincipalCollection;
+        import be.atbash.ee.security.octopus.subject.UserPrincipal;
+        import be.atbash.ee.security.octopus.token.AuthenticationToken;
+        import be.atbash.ee.security.octopus.token.UsernamePasswordToken;
+
+        import javax.enterprise.context.ApplicationScoped;
+
+        @ApplicationScoped
+        public class ApplicationSecurityData extends SecurityDataProvider {
+
+            private int principalId = 0;
+
+            @Override
+            public AuthenticationInfo getAuthenticationInfo(AuthenticationToken authenticationToken) {
+                if (authenticationToken instanceof UsernamePasswordToken) {
+                    UsernamePasswordToken usernamePasswordToken = (UsernamePasswordToken) authenticationToken;
+
+                    AuthenticationInfoBuilder authenticationInfoBuilder = new AuthenticationInfoBuilder();
+                    authenticationInfoBuilder.principalId(principalId++).name(authenticationToken.getPrincipal().toString());
+            authenticationInfoBuilder.userName(authenticationToken.getPrincipal().toString());
+                    // TODO: Change for production. Here we use username as password
+                    authenticationInfoBuilder.password(usernamePasswordToken.getUsername());
+
+                    return authenticationInfoBuilder.build();
+                }
+
+                return null;
+            }
+
+            @Override
+            public AuthorizationInfo getAuthorizationInfo(PrincipalCollection principalCollection) {
+                AuthorizationInfoBuilder builder = new AuthorizationInfoBuilder();
+                UserPrincipal principal = principalCollection.getPrimaryPrincipal();
+                if ("admin".equalsIgnoreCase(principal.getUserName())) {
+            builder.addPermission("demo:*:*");
+                }
+                return builder.build();
+            }
+        }
+
+### 4.1.13 Define the unauthorized page
+
+* Create the JSF page _unauthorized.xhtml_ within the root (_webapp_ directory)
+* Put at a minimum the following information on that page
+
+        <p:messages/>
+
+        <h:panelGroup rendered="#{not empty flash.interceptionInfo}">
+            <h:outputText value="#{flash.interceptionInfo}" escape="false"/>
+        </h:panelGroup>
+        <br/>
+
+        <h:panelGroup rendered="#{empty flash.interceptionInfo}">
+            <h:outputText value="You don't have the required permissions to access the page."/>
+        </h:panelGroup>
+
+
+### 4.1.14 Test the application
+
+* Deploy the application on a Java EE7 compliant application server capable of running on Java 8 having MicroProfile Config on board.
+* Open the browser pointing to the following URL : http://<host>/ex4/index.xhtml
+* Click on the user page link
+* Fill in any username and password information in the login page (username must be equals to password, take something else then _admin_)
+* Click on the Login button
+* See the message that greeting will fail
+* Fill-in a name in the input field and click on the Greeting button
+* Greeting process will fail and the unauthorized page will be shown.
+* Go again to the _/pages/user.xhtml_ URL
+* Click on the logout link
+* Repeat the process but now use as username _admin_
+* See the greeting on the page when the _Greeting_ button is clicked.
+
+## 4.2 Explanation
+
+The initial steps 1 through 4 aren't explained here anymore, you can read it in chapter 1. Also, the other steps which are explained already in the first chapter, or are standard practice within Java EE, aren't covered here.
+
+### 4.2.1 Configure EJB interceptor
+
+With the _ejb_jar.xml_ file, we can define and apply an interceptor to all EJB methods. Protecting all EJB methods is a good practice since we can verify the access to all read and write operations to/from the other systems.  EJB methods also often correspond to a certain business functionality. And thus it is a good place to check if the user is allowed to perform that logic.
+
+With the assignment of the OctopusInterceptor, we achieve 2 things.
+
+- Each method which doesn't have any authorization information will result in an exception when called by the system.
+- The authorization requirements which are defined by means of an annotation are verified.
+
+### 4.2.2 EJB bean
+
+Creating an EJB bean is easy and the additional features like security (the standard Java EE one), transaction management and concurrent access management are applied to them automatically.
+
+The _@RequiresPermissions_ specifies that only those users who have the permission are allowed to execute a method. In this example, the user must have any action and/or target value from the _demo_ domain.
+
+### 4.2.3 Test results
+
+When we first try the greeting functionality, we end up on the _unauthorized_ page. Only the user _admin_ has the required permission to execute the _HelloBoundary#sayHello_ method. The OctopusInterceptor verifies these permissions and thus determines that the current user isn't authorized and thus an exception is thrown which results in the presentation of the unauthorized page.
+
+The second time, we try with the user admin. He has the required permissions and thus the functionality is performed without any issue.
+
+Of course, in a real application, the button on the screen will already be protected, as indicated with the output text which is also shown.
+
+So why do you need the protection at the EJB level if you can do it on the screen already?
+
+In real applications, you have hundreds of methods and a click on the screen can call multiple EJB methods. When you individually define the permissions for each method, there can never be an 'accidentally' execution of the method by a user who hasn't have the correct permissions. But due to the oblivion of the developer or due to the complexity of the interactions the end user has reached the method.
+
+## 4.3 Where to go next
+
+* Learn about the creation of programmatic authorization voters to define complex rules with code in example ???.
+* Learn about asynchronous EJB method protection in example ???
+* Learn about using roles for method protection with example ???
+* Learn about all annotations recognized by the OctopusInterceptor in appendix ???
+
